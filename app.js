@@ -26,6 +26,13 @@
         txt.textContent = p.texto
         pDiv.appendChild(txt)
 
+        if (p.hint) {
+          const hint = document.createElement('div')
+          hint.className = 'pergunta-hint'
+          hint.textContent = p.hint
+          pDiv.appendChild(hint)
+        }
+
         const ops = document.createElement('div')
         ops.className = 'opcoes'
 
@@ -189,6 +196,13 @@
       motivo.className = 'exame-motivo'
       motivo.textContent = e.motivo
       card.appendChild(motivo)
+
+      if (e.hint) {
+        const hint = document.createElement('div')
+        hint.className = 'exame-hint'
+        hint.textContent = e.hint
+        card.appendChild(hint)
+      }
 
       const boxes = document.createElement('div')
       boxes.className = 'exame-boxes'
