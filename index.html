@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Hipotonia Neonatal — Apoio à investigação diagnóstica</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div id="disclaimer-banner" class="disclaimer-banner">
+    <div class="disclaimer-content">
+      <strong>⚠️ PROTÓTIPO — DADOS FICTÍCIOS</strong>
+      <p>Todos os conteúdos a seguir são <strong>exemplos fictícios</strong> para mostrar a ideia.
+      <strong>Não use como protocolo de nada</strong> até que isso seja desenvolvido por quem de fato
+      tem competência e conhecimento para isso. Esta ferramenta é apenas conceitual e não substitui
+      avaliação clínica especializada.</p>
+      <button id="disclaimer-close" type="button" aria-label="Recolher aviso">recolher</button>
+    </div>
+  </div>
+
+  <header class="site-header">
+    <div class="header-inner">
+      <div>
+        <h1>Hipotonia Neonatal</h1>
+        <p class="subtitle">Apoio à investigação diagnóstica em recém-nascidos com hipotonia</p>
+      </div>
+      <button id="reset-btn" type="button" class="reset-btn">↺ Reiniciar</button>
+    </div>
+  </header>
+
+  <main class="layout">
+    <section class="content-area" aria-label="Questionário e exames">
+
+      <section class="card section-card" id="questionario-section">
+        <h2>Anamnese</h2>
+        <p class="card-sub">Responda o que souber. Pode pular ou marcar "Não sei". O ranking se atualiza a cada resposta.</p>
+        <div id="blocos-container"></div>
+      </section>
+
+      <section class="card section-card" id="exames-section">
+        <h2>Plano de investigação — sequência sugerida</h2>
+        <p class="card-sub">Ranking de exames priorizando padrão-ouro e exames que resolvem mais de uma hipótese.</p>
+        <div id="exames-container">
+          <p class="empty">Responda algumas perguntas para ver o plano.</p>
+        </div>
+      </section>
+
+      <section class="card section-card" id="sindromes-explicadas-section">
+        <h2>Síndromes em mais detalhes</h2>
+        <p class="card-sub">Ordenadas pela suspeita atual.</p>
+        <div id="sindromes-explicadas"></div>
+      </section>
+
+    </section>
+
+    <aside class="sidebar" aria-label="Ranking de suspeita diagnóstica">
+      <div class="card sidebar-card sticky">
+        <h2>Ranking de suspeita</h2>
+        <p class="card-sub">Compatibilidade clínica relativa</p>
+        <ol id="ranking-list" class="ranking-list"></ol>
+        <p class="ranking-hint">Os percentuais refletem <em>compatibilidade relativa</em>, não probabilidade absoluta.</p>
+      </div>
+    </aside>
+  </main>
+
+  <footer class="site-footer">
+    <p>Iniciativa <strong>SPW Brasil</strong> em conjunto com associações parceiras —
+      <a href="https://spwbrasil.org.br" target="_blank" rel="noopener">spwbrasil.org.br</a> ·
+      protótipo conceitual, dados não-clínicos · não publicar sem validação médica.</p>
+  </footer>
+
+  <script src="data.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
