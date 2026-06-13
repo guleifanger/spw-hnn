@@ -13,53 +13,63 @@
       <strong>⚠️ PROTÓTIPO — DADOS FICTÍCIOS</strong>
       <p>Todos os conteúdos a seguir são <strong>exemplos fictícios</strong> para mostrar a ideia.
       <strong>Não use como protocolo de nada</strong> até que isso seja desenvolvido por quem de fato
-      tem competência e conhecimento para isso. Esta ferramenta é apenas conceitual e não substitui
-      avaliação clínica especializada.</p>
+      tem competência e conhecimento para isso. Esta ferramenta não substitui avaliação clínica.</p>
       <button id="disclaimer-close" type="button" aria-label="Recolher aviso">recolher</button>
     </div>
   </div>
 
   <header class="site-header">
     <div class="header-inner">
-      <div>
-        <h1>Hipotonia Neonatal</h1>
-        <p class="subtitle">Apoio à investigação diagnóstica em recém-nascidos com hipotonia</p>
+      <div class="header-brand">
+        <div class="header-logo" aria-hidden="true">🧬</div>
+        <div>
+          <h1>Diagnóstico Diferencial — Hipotonia Neonatal</h1>
+          <p class="subtitle">Raciocínio clínico estruturado com plano de investigação priorizado</p>
+        </div>
       </div>
-      <button id="reset-btn" type="button" class="reset-btn">↺ Reiniciar</button>
+      <div class="header-actions">
+        <span class="header-badge">Uso exclusivo médico</span>
+        <button id="reset-btn" type="button" class="reset-btn">↺ Reiniciar</button>
+      </div>
     </div>
   </header>
 
   <main class="layout">
-    <section class="content-area" aria-label="Questionário e exames">
+    <section class="content-area">
 
       <section class="card section-card" id="questionario-section">
-        <h2>Anamnese</h2>
-        <p class="card-sub">Responda o que souber. Pode pular ou marcar "Não sei". O ranking se atualiza a cada resposta.</p>
+        <div class="section-card-header">
+          <h2>📝 Anamnese estruturada</h2>
+          <span id="progresso-pill" class="progresso-pill">0/0 respondidas</span>
+        </div>
+        <p class="card-sub">Responda todas as perguntas para liberar o ranking diagnóstico e o plano de exames.</p>
         <div id="blocos-container"></div>
       </section>
 
       <section class="card section-card" id="exames-section">
-        <h2>Plano de investigação — sequência sugerida</h2>
-        <p class="card-sub">Ranking de exames priorizando padrão-ouro e exames que resolvem mais de uma hipótese.</p>
+        <h2>🧪 Plano de Investigação — Sequência Personalizada</h2>
+        <p class="card-sub">Exames ordenados pela combinação de prioridade clínica e relevância para o perfil de suspeita.
+          Para cada exame: o que ele afasta ou confirma, disponibilidade e acesso.</p>
         <div id="exames-container">
-          <p class="empty">Responda algumas perguntas para ver o plano.</p>
+          <div class="empty">Responda todas as perguntas pra ver o plano personalizado.</div>
         </div>
       </section>
 
-      <section class="card section-card" id="sindromes-explicadas-section">
-        <h2>Síndromes em mais detalhes</h2>
-        <p class="card-sub">Ordenadas pela suspeita atual.</p>
-        <div id="sindromes-explicadas"></div>
+      <section class="card section-card" id="sindromes-section">
+        <h2>📊 Ranking de Suspeita Diagnóstica</h2>
+        <p class="card-sub">Ranqueadas por compatibilidade com os achados clínicos fornecidos.
+          O diagnóstico definitivo depende de exame clínico especializado e confirmação laboratorial.</p>
+        <div id="sindromes-explicadas">
+          <div class="empty">Responda todas as perguntas pra ver as síndromes detalhadas.</div>
+        </div>
       </section>
 
     </section>
 
-    <aside class="sidebar" aria-label="Ranking de suspeita diagnóstica">
+    <aside class="sidebar">
       <div class="card sidebar-card sticky">
-        <h2>Ranking de suspeita</h2>
-        <p class="card-sub">Compatibilidade clínica relativa</p>
-        <ol id="ranking-list" class="ranking-list"></ol>
-        <p class="ranking-hint">Os percentuais refletem <em>compatibilidade relativa</em>, não probabilidade absoluta.</p>
+        <div class="sidebar-title">Suspeita Diagnóstica</div>
+        <div id="ranking-list"></div>
       </div>
     </aside>
   </main>
@@ -67,7 +77,7 @@
   <footer class="site-footer">
     <p>Iniciativa <strong>SPW Brasil</strong> em conjunto com associações parceiras —
       <a href="https://spwbrasil.org.br" target="_blank" rel="noopener">spwbrasil.org.br</a> ·
-      protótipo conceitual, dados não-clínicos · não publicar sem validação médica.</p>
+      protótipo conceitual · não publicar sem validação médica.</p>
   </footer>
 
   <script src="data.js"></script>

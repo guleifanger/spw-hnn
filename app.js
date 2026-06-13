@@ -1,11 +1,18 @@
-// hnn.spwbrasil.org.br — lógica do protótipo
-// Sem framework, sem persistência, sem servidor. Tudo no client.
-
+// hnn.spwbrasil.org.br
 (function () {
   const DATA = window.HNN_DATA
-  const respostas = {} // { perguntaId: opcaoV }
+  const respostas = {}
 
-  // Renderiza blocos de perguntas
+  function totalPerguntas() {
+    return DATA.blocos.reduce((s, b) => s + b.perguntas.length, 0)
+  }
+  function totalRespondidas() {
+    return Object.keys(respostas).length
+  }
+  function todasRespondidas() {
+    return totalRespondidas() >= totalPerguntas()
+  }
+
   function renderBlocos() {
     const container = document.getElementById('blocos-container')
     container.innerHTML = ''
@@ -35,7 +42,6 @@
 
         const ops = document.createElement('div')
         ops.className = 'opcoes'
-
         for (const opcao of p.opcoes) {
           const btn = document.createElement('button')
           btn.type = 'button'
@@ -45,7 +51,6 @@
           btn.textContent = opcao.label
           btn.addEventListener('click', () => {
             respostas[p.id] = opcao.v
-            // Marca selecionado nessa pergunta
             ops.querySelectorAll('.opcao-btn').forEach(b => b.classList.remove('selected'))
             btn.classList.add('selected')
             atualizar()
@@ -59,11 +64,9 @@
     }
   }
 
-  // Calcula scores baseado em respostas
   function calcularScores() {
     const scores = {}
     for (const s of DATA.sindromes) scores[s.id] = 0
-
     for (const bloco of DATA.blocos) {
       for (const p of bloco.perguntas) {
         const r = respostas[p.id]
@@ -78,11 +81,9 @@
     return scores
   }
 
-  // Normaliza pra %  (compatibilidade relativa, não probabilidade absoluta)
   function normalizar(scores) {
     const valores = Object.values(scores)
     const min = Math.min(...valores, 0)
-    // Shift pra ficar sempre >= 0
     const shifted = {}
     for (const [k, v] of Object.entries(scores)) shifted[k] = Math.max(0, v - min)
     const max = Math.max(...Object.values(shifted), 1)
@@ -91,242 +92,228 @@
     return pcts
   }
 
-  // Renderiza ranking lateral
+  function classeSuspeita(pct) {
+    if (pct >= 70) return { className: 'alta', dot: '🔴', label: 'Alta suspeita' }
+    if (pct >= 40) return { className: 'moderada', dot: '🟡', label: 'Suspeita moderada' }
+    return { className: 'baixa', dot: '⚪', label: 'Suspeita baixa' }
+  }
+  function classeLinha(idx) {
+    if (idx === 0) return { dot: '🔴', label: '1ª Linha' }
+    if (idx === 1) return { dot: '🟠', label: '2ª Linha' }
+    if (idx === 2) return { dot: '🟡', label: '3ª Linha' }
+    return { dot: '⚪', label: 'Considerar' }
+  }
+
+  function renderProgresso() {
+    const el = document.getElementById('progresso-pill')
+    const done = totalRespondidas()
+    const tot = totalPerguntas()
+    el.textContent = `${done}/${tot} respondidas`
+    el.classList.toggle('completo', done >= tot)
+  }
+
   function renderRanking(pcts) {
     const list = document.getElementById('ranking-list')
     list.innerHTML = ''
+
+    if (!todasRespondidas()) {
+      const div = document.createElement('div')
+      div.className = 'ranking-bloqueado'
+      const tot = totalPerguntas()
+      const done = totalRespondidas()
+      div.innerHTML = `
+        <div class="ranking-bloqueado-icon">🔒</div>
+        <div class="ranking-bloqueado-title">Ranking liberado ao final</div>
+        <div class="ranking-bloqueado-text">Responda todas as ${tot} perguntas pra ver a suspeita diagnóstica.</div>
+        <div class="ranking-bloqueado-progresso">
+          <div class="ranking-bloqueado-bar"><div style="width:${(done/tot*100).toFixed(0)}%"></div></div>
+          <div class="ranking-bloqueado-counter">${done} de ${tot}</div>
+        </div>
+      `
+      list.appendChild(div)
+      return
+    }
+
     const ordenado = DATA.sindromes
       .map(s => ({ ...s, pct: pcts[s.id] || 0 }))
       .sort((a, b) => b.pct - a.pct)
 
-    ordenado.forEach((s, idx) => {
+    const ul = document.createElement('ul')
+    ul.className = 'ranking-list'
+    ordenado.forEach((s) => {
       const li = document.createElement('li')
-
-      const nome = document.createElement('div')
-      nome.className = 'ranking-nome'
-      nome.textContent = s.sigla
-      nome.title = s.nome
-
-      const bar = document.createElement('div')
-      bar.className = 'ranking-bar' + (idx < 3 ? ' top' : '')
-      const fill = document.createElement('div')
-      fill.style.width = s.pct + '%'
-      bar.appendChild(fill)
-
-      const pct = document.createElement('div')
-      pct.className = 'ranking-pct'
-      pct.textContent = s.pct + '%'
-
-      li.appendChild(nome)
-      li.appendChild(bar)
-      li.appendChild(pct)
-      list.appendChild(li)
+      li.innerHTML = `
+        <div class="ranking-row-top">
+          <span class="ranking-nome" title="${s.nome}">${s.nome}</span>
+          <span class="ranking-pct">${s.pct}</span>
+        </div>
+        <div class="ranking-bar"><div style="width:${s.pct}%;background:${s.cor}"></div></div>
+      `
+      ul.appendChild(li)
     })
+    list.appendChild(ul)
+    const hint = document.createElement('p')
+    hint.className = 'ranking-hint'
+    hint.textContent = 'Ranking baseado nos achados clínicos informados. Compatibilidade relativa — não probabilidade absoluta.'
+    list.appendChild(hint)
   }
 
-  // Renderiza ranking de exames priorizando padrão-ouro de síndromes mais prováveis
   function renderExames(pcts) {
     const container = document.getElementById('exames-container')
     container.innerHTML = ''
 
-    const algumaResposta = Object.keys(respostas).length > 0
-    if (!algumaResposta) {
-      const empty = document.createElement('p')
-      empty.className = 'empty'
-      empty.textContent = 'Responda algumas perguntas para ver o plano de investigação personalizado.'
-      container.appendChild(empty)
+    if (!todasRespondidas()) {
+      container.innerHTML = `<div class="empty">
+        Responda todas as perguntas pra ver o plano personalizado de investigação.
+      </div>`
       return
     }
 
-    // Score de cada exame: soma dos pcts das síndromes que ele confirma/afasta
     const examesRank = DATA.exames.map(e => {
       const score = e.confirma_afasta.reduce((s, sid) => s + (pcts[sid] || 0), 0)
-      const sindromesAlvo = e.confirma_afasta.map(sid => ({
-        sid,
-        nome: DATA.sindromes.find(s => s.id === sid)?.nome || sid,
-        pct: pcts[sid] || 0,
-      }))
+      const sindromesAlvo = e.confirma_afasta.map(sid => {
+        const s = DATA.sindromes.find(x => x.id === sid)
+        return { sid, nome: s.nome, pct: pcts[sid] || 0, cor: s.cor }
+      })
       return { ...e, score, sindromesAlvo }
     })
     .filter(e => e.score > 0)
     .sort((a, b) => b.score - a.score)
 
     if (examesRank.length === 0) {
-      const empty = document.createElement('p')
-      empty.className = 'empty'
-      empty.textContent = 'Suspeita ainda baixa — responda mais perguntas pra refinar o plano.'
-      container.appendChild(empty)
+      container.innerHTML = '<div class="empty">Suspeita ainda baixa para todos os exames.</div>'
       return
     }
 
     examesRank.forEach((e, idx) => {
+      const linha = classeLinha(idx)
       const card = document.createElement('div')
       card.className = 'exame-card'
+      card.style.borderLeftColor = e.sindromesAlvo[0]?.cor || '#2F51A2'
 
-      const header = document.createElement('div')
-      header.className = 'exame-header'
-
-      const left = document.createElement('div')
-      const ordem = document.createElement('span')
-      ordem.className = 'exame-ordem'
-      ordem.textContent = 'Exame ' + (idx + 1)
-      const titulo = document.createElement('span')
-      titulo.className = 'exame-titulo'
-      titulo.textContent = ' ' + e.nome
-      left.appendChild(ordem)
-      left.appendChild(titulo)
-
-      const pri = document.createElement('span')
-      pri.className = 'exame-prioridade ' + (idx === 0 ? 'alta' : idx <= 2 ? 'media' : 'baixa')
-      pri.textContent = idx === 0 ? 'Alta prioridade' : idx <= 2 ? 'Prioridade média' : 'Considerar depois'
-
-      header.appendChild(left)
-      header.appendChild(pri)
-      card.appendChild(header)
-
-      const conf = document.createElement('div')
-      conf.className = 'exame-confirma'
-      const alvos = e.sindromesAlvo
-        .map(a => `<strong>${a.nome}</strong> (${a.pct}%)`)
-        .join(' · ')
-      conf.innerHTML = 'Confirma ou afasta: ' + alvos
-      card.appendChild(conf)
-
-      const motivo = document.createElement('div')
-      motivo.className = 'exame-motivo'
-      motivo.textContent = e.motivo
-      card.appendChild(motivo)
-
-      if (e.hint) {
-        const hint = document.createElement('div')
-        hint.className = 'exame-hint'
-        hint.textContent = e.hint
-        card.appendChild(hint)
-      }
-
-      const boxes = document.createElement('div')
-      boxes.className = 'exame-boxes'
-
-      // SUS
-      const susBox = document.createElement('div')
-      susBox.className = 'exame-box sus'
-      const susTitleClass = e.sus.disponivel === 'sim' ? '' : e.sus.disponivel === 'nao' ? 'bad' : 'warn'
-      const susIcon = e.sus.disponivel === 'sim' ? '✅' : e.sus.disponivel === 'nao' ? '❌' : '⚠️'
-      const susLabel = e.sus.disponivel === 'sim' ? 'Disponível no SUS'
-        : e.sus.disponivel === 'nao' ? 'Não disponível no SUS'
-        : 'Disponível em centros de referência'
-      susBox.innerHTML = `
-        <div class="exame-box-title ${susTitleClass}">${susIcon} SUS</div>
-        <div>${susLabel}</div>
-        <small>${e.sus.sigtap !== '—' ? 'SIGTAP ' + e.sus.sigtap : ''}</small>
-        <div style="margin-top:4px"><small>${e.sus.obs}</small></div>
+      // header badge
+      const badge = `<div class="exame-badge">${linha.dot} ${linha.label} · Exame ${idx + 1}</div>`
+      // título e padrão-ouro tag
+      const tituloHtml = `
+        <h3 class="exame-titulo">${e.nome}${e.padrao_ouro ? ' <span class="exame-tag-ouro">PADRÃO-OURO</span>' : ''}</h3>
       `
-      boxes.appendChild(susBox)
+      // "Avalia / afasta / confirma" pílulas
+      const pills = e.sindromesAlvo.map(a =>
+        `<span class="exame-pill" style="background:${a.cor}22;color:${a.cor};border-color:${a.cor}55">${a.nome}</span>`
+      ).join('')
 
-      // Particular
-      const partBox = document.createElement('div')
-      partBox.className = 'exame-box particular'
-      const faixaLabel = {
-        '$': 'até R$ 300',
-        '$$': 'R$ 300 a R$ 1.000',
-        '$$$': 'R$ 1.000 a R$ 3.000',
-        '$$$$': 'R$ 3.000 a R$ 8.000',
-        '$$$$$': 'acima de R$ 8.000',
-      }[e.particular.faixa] || ''
-      partBox.innerHTML = `
-        <div class="exame-box-title">💳 Particular</div>
-        <div>${e.particular.disponivel ? '✅ Disponível' : '❌ Indisponível'}</div>
-        <div style="margin-top:4px;font-weight:600">${e.particular.faixa} <small>(${faixaLabel})</small></div>
+      const descricao = `<p class="exame-descricao">${e.descricao}</p>`
+
+      // 3 boxes
+      const susIcon = e.sus.disponivel === 'sim' ? '✅' : e.sus.disponivel === 'parcial' ? '⚠️' : '❌'
+      const susTitle = e.sus.disponivel === 'sim' ? 'SUS — Disponível' : e.sus.disponivel === 'parcial' ? 'SUS — Acesso parcial' : 'SUS — Indisponível'
+      const susBox = `
+        <div class="exame-box sus">
+          <div class="exame-box-title">${susIcon} ${susTitle}</div>
+          <div class="exame-box-body">${e.sus.obs}</div>
+          ${e.sus.sigtap !== '—' ? `<div class="exame-box-tag">SIGTAP ${e.sus.sigtap}</div>` : ''}
+        </div>
       `
-      boxes.appendChild(partBox)
-
-      // Associação
-      const assocBox = document.createElement('div')
-      assocBox.className = 'exame-box assoc'
-      if (e.associacao_extra && DATA.associacoes[e.associacao_extra]) {
-        const a = DATA.associacoes[e.associacao_extra]
-        assocBox.innerHTML = `
-          <div class="exame-box-title">🤝 Associação</div>
-          <div><strong>${a.nome}</strong></div>
-          <div style="margin-top:4px"><small>${a.oferece}</small></div>
-          ${a.site && a.site !== '#' ? `<div style="margin-top:4px"><a href="${a.site}" target="_blank" rel="noopener">${a.site.replace('https://', '')}</a></div>` : ''}
-        `
+      const partBox = `
+        <div class="exame-box particular">
+          <div class="exame-box-title">💳 Rede Particular</div>
+          <div class="exame-box-body">${e.particular.disponivel ? '✅ Disponível em laboratórios da rede privada. Solicitar com pedido médico.' : '❌ Indisponível.'}</div>
+          <div class="exame-box-faixa"><span class="exame-faixa-cifras">${e.particular.faixa}</span> <small>≈ ${e.particular.faixaTexto || ''}</small></div>
+        </div>
+      `
+      let assocBox
+      const a1 = e.associacao_extra && DATA.associacoes[e.associacao_extra]
+      const a2 = e.associacao_extra2 && DATA.associacoes[e.associacao_extra2]
+      if (a1 || a2) {
+        const blocks = [a1, a2].filter(Boolean).map(a => `
+          <div class="assoc-block">
+            <div class="assoc-nome">✅ ${a.nome}</div>
+            <div class="assoc-oferece">${a.oferece}</div>
+            ${a.site && a.site !== '#' ? `<div class="assoc-link">🌐 <a href="${a.site}" target="_blank" rel="noopener">${a.site.replace(/^https?:\/\//, '')}</a></div>` : ''}
+          </div>
+        `).join('')
+        assocBox = `<div class="exame-box assoc">
+          <div class="exame-box-title">🤝 Associações de Pacientes</div>
+          ${blocks}
+        </div>`
       } else {
-        assocBox.innerHTML = `
-          <div class="exame-box-title" style="color:var(--gray-500)">🤝 Associação</div>
-          <div><small>Sem associação dedicada cadastrada.</small></div>
-        `
-        assocBox.style.background = 'var(--gray-100)'
-        assocBox.style.color = 'var(--gray-500)'
+        assocBox = `<div class="exame-box assoc vazia">
+          <div class="exame-box-title">🤝 Associações de Pacientes</div>
+          <div class="exame-box-body">Sem associação dedicada cadastrada para este exame.</div>
+        </div>`
       }
-      boxes.appendChild(assocBox)
 
-      card.appendChild(boxes)
+      // Como interpretar
+      const interp = e.interpretacao ? `
+        <div class="exame-interpretar">
+          <strong>📋 Como interpretar:</strong> ${e.interpretacao}
+        </div>
+      ` : ''
+
+      card.innerHTML = `
+        ${badge}
+        ${tituloHtml}
+        <div class="exame-confirma-label">Avalia / afasta / confirma:</div>
+        <div class="exame-pills">${pills}</div>
+        ${descricao}
+        <div class="exame-boxes">
+          ${susBox}
+          ${partBox}
+          ${assocBox}
+        </div>
+        ${interp}
+      `
       container.appendChild(card)
     })
   }
 
-  // Renderiza síndromes em detalhes (ordenadas por suspeita)
   function renderSindromesExplicadas(pcts) {
     const container = document.getElementById('sindromes-explicadas')
     container.innerHTML = ''
+
+    if (!todasRespondidas()) {
+      container.innerHTML = `<div class="empty">Responda todas as perguntas pra ver o detalhamento.</div>`
+      return
+    }
+
     const ordenado = DATA.sindromes
       .map(s => ({ ...s, pct: pcts[s.id] || 0 }))
       .sort((a, b) => b.pct - a.pct)
 
-    for (const s of ordenado) {
-      const det = document.createElement('div')
-      det.className = 'sindrome-detalhe'
+    ordenado.forEach((s, idx) => {
+      const susp = classeSuspeita(s.pct)
+      const card = document.createElement('div')
+      card.className = 'sindrome-card'
+      card.style.borderLeftColor = s.cor
 
-      const header = document.createElement('div')
-      header.className = 'sindrome-header'
+      const pills = (s.sintomasChave || []).map(t =>
+        `<span class="sint-pill" style="background:${s.cor}15;color:${s.cor}">${t}</span>`
+      ).join('')
 
-      const left = document.createElement('div')
-      const t = document.createElement('div')
-      t.className = 'sindrome-titulo'
-      t.textContent = s.nome
-      const g = document.createElement('div')
-      g.className = 'sindrome-gene'
-      g.textContent = s.gene
-      left.appendChild(t)
-      left.appendChild(g)
-
-      const p = document.createElement('div')
-      p.className = 'sindrome-pct'
-      p.textContent = s.pct + '%'
-
-      header.appendChild(left)
-      header.appendChild(p)
-      det.appendChild(header)
-
-      // Padrão-ouro
-      const ouro = DATA.exames.find(e => e.id === s.padraoOuro)
-      if (ouro) {
-        const padr = document.createElement('div')
-        padr.style.fontSize = '12px'
-        padr.style.color = 'var(--gray-700)'
-        padr.style.marginTop = '6px'
-        padr.innerHTML = `<strong>Padrão-ouro:</strong> ${ouro.nome}`
-        det.appendChild(padr)
-      }
-
-      if (s.associacao && DATA.associacoes[s.associacao]) {
-        const a = DATA.associacoes[s.associacao]
-        const assoc = document.createElement('div')
-        assoc.style.fontSize = '12px'
-        assoc.style.color = 'var(--gray-700)'
-        assoc.style.marginTop = '4px'
-        assoc.innerHTML = `<strong>Associação:</strong> ${a.nome}${a.site && a.site !== '#' ? ' — <a href="' + a.site + '" target="_blank" rel="noopener">' + a.site.replace('https://', '') + '</a>' : ''}`
-        det.appendChild(assoc)
-      }
-
-      container.appendChild(det)
-    }
+      card.innerHTML = `
+        <div class="sindrome-num" style="background:${s.cor}">${idx + 1}º</div>
+        <div class="sindrome-body">
+          <div class="sindrome-top">
+            <div>
+              <h3 class="sindrome-nome" style="color:${s.cor}">${s.nome}</h3>
+              <div class="sindrome-suspeita ${susp.className}">${susp.dot} ${susp.label}</div>
+            </div>
+            <div class="sindrome-gene-box">${s.gene}</div>
+          </div>
+          <p class="sindrome-desc">${s.descricao}</p>
+          <div class="sint-pills">${pills}</div>
+          <div class="sindrome-bar"><div style="width:${s.pct}%;background:${s.cor}"></div></div>
+          <div class="sindrome-bar-label">Compatibilidade relativa: <strong>${s.pct}%</strong></div>
+        </div>
+      `
+      container.appendChild(card)
+    })
   }
 
   function atualizar() {
     const scores = calcularScores()
     const pcts = normalizar(scores)
+    renderProgresso()
     renderRanking(pcts)
     renderExames(pcts)
     renderSindromesExplicadas(pcts)
@@ -339,7 +326,6 @@
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
-  // Init
   document.addEventListener('DOMContentLoaded', () => {
     renderBlocos()
     atualizar()
