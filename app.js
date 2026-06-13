@@ -12,6 +12,8 @@
 
   const answers = {}
   const scores = new Array(SYN.length).fill(0)
+  let curSec = 0   // índice da seção atual (paginação por bloco)
+  let resultadoAberto = false  // só vira true ao clicar "Ver resultado" no fim
 
   // Padrão-ouro de cada exame (qual síndrome ele é definitivo) — mesma tabela do ref
   const PRIMARY_FOR = {
@@ -47,62 +49,148 @@
   function renderBlocos() {
     const container = document.getElementById('blocos-container')
     container.innerHTML = ''
-    SECTIONS.forEach((sec) => {
-      const div = document.createElement('div')
-      div.className = 'bloco'
-      const h = document.createElement('div')
-      h.className = 'bloco-titulo'
-      h.textContent = `${sec.icon} ${sec.num}. ${sec.title}`
-      div.appendChild(h)
-      const subt = document.createElement('div')
-      subt.className = 'bloco-sub'
-      subt.textContent = sec.subtitle
-      div.appendChild(subt)
 
-      for (const q of sec.questions) {
-        const pDiv = document.createElement('div')
-        pDiv.className = 'pergunta'
+    const sec = SECTIONS[curSec]
+    const isLast = curSec === SECTIONS.length - 1
 
-        const txt = document.createElement('div')
-        txt.className = 'pergunta-texto'
-        txt.textContent = q.text
-        pDiv.appendChild(txt)
-
-        if (q.hint) {
-          const hint = document.createElement('div')
-          hint.className = 'pergunta-hint'
-          hint.innerHTML = '💡 ' + escapeHtml(q.hint)
-          pDiv.appendChild(hint)
-        }
-        if (q.alert) {
-          const al = document.createElement('div')
-          al.className = 'pergunta-alert'
-          al.textContent = q.alert
-          pDiv.appendChild(al)
-        }
-
-        const ops = document.createElement('div')
-        ops.className = 'opcoes'
-        for (const opcao of q.options) {
-          const btn = document.createElement('button')
-          btn.type = 'button'
-          btn.className = 'opcao-btn'
-          btn.dataset.q = q.id
-          btn.dataset.label = opcao.label
-          btn.textContent = opcao.label
-          btn.addEventListener('click', () => {
-            pick(q, opcao)
-            ops.querySelectorAll('.opcao-btn').forEach(b => b.classList.remove('selected'))
-            btn.classList.add('selected')
-            atualizar()
-          })
-          ops.appendChild(btn)
-        }
-        pDiv.appendChild(ops)
-        div.appendChild(pDiv)
-      }
-      container.appendChild(div)
+    // Stepper visual (compactinho com o nº da seção atual)
+    const stepper = document.createElement('div')
+    stepper.className = 'stepper'
+    SECTIONS.forEach((s, idx) => {
+      const dot = document.createElement('div')
+      const sectionDone = s.questions.every(q => answers[q.id])
+      dot.className = 'stepper-dot' + (idx === curSec ? ' active' : '') + (sectionDone ? ' done' : '')
+      dot.title = s.title
+      dot.textContent = idx + 1
+      dot.addEventListener('click', () => { curSec = idx; renderBlocos() })
+      stepper.appendChild(dot)
     })
+    container.appendChild(stepper)
+
+    const div = document.createElement('div')
+    div.className = 'bloco bloco-paginado'
+    const h = document.createElement('div')
+    h.className = 'bloco-titulo'
+    h.textContent = `${sec.icon} Seção ${sec.num} de ${SECTIONS.length}: ${sec.title}`
+    div.appendChild(h)
+    const subt = document.createElement('div')
+    subt.className = 'bloco-sub'
+    subt.textContent = sec.subtitle
+    div.appendChild(subt)
+
+    for (const q of sec.questions) {
+      const pDiv = document.createElement('div')
+      pDiv.className = 'pergunta'
+
+      const txt = document.createElement('div')
+      txt.className = 'pergunta-texto'
+      txt.textContent = q.text
+      pDiv.appendChild(txt)
+
+      if (q.hint) {
+        const hint = document.createElement('div')
+        hint.className = 'pergunta-hint'
+        hint.innerHTML = '💡 ' + escapeHtml(q.hint)
+        pDiv.appendChild(hint)
+      }
+      if (q.alert) {
+        const al = document.createElement('div')
+        al.className = 'pergunta-alert'
+        al.textContent = q.alert
+        pDiv.appendChild(al)
+      }
+
+      const ops = document.createElement('div')
+      ops.className = 'opcoes'
+      for (const opcao of q.options) {
+        const btn = document.createElement('button')
+        btn.type = 'button'
+        btn.className = 'opcao-btn'
+        if (answers[q.id] === opcao.label) btn.classList.add('selected')
+        btn.textContent = opcao.label
+        btn.addEventListener('click', () => {
+          pick(q, opcao)
+          ops.querySelectorAll('.opcao-btn').forEach(b => b.classList.remove('selected'))
+          btn.classList.add('selected')
+          atualizarStepperEProgresso()
+        })
+        ops.appendChild(btn)
+      }
+      pDiv.appendChild(ops)
+      div.appendChild(pDiv)
+    }
+    container.appendChild(div)
+
+    // Nav botões
+    const nav = document.createElement('div')
+    nav.className = 'paginacao-nav'
+    if (curSec > 0) {
+      const back = document.createElement('button')
+      back.type = 'button'
+      back.className = 'nav-btn nav-back'
+      back.textContent = '← Seção anterior'
+      back.onclick = () => { curSec--; renderBlocos(); scrollTopo() }
+      nav.appendChild(back)
+    }
+    const info = document.createElement('div')
+    info.className = 'paginacao-info'
+    const respondidasSec = sec.questions.filter(q => answers[q.id]).length
+    info.textContent = `${respondidasSec} / ${sec.questions.length} respondidas nesta seção`
+    nav.appendChild(info)
+
+    const next = document.createElement('button')
+    next.type = 'button'
+    next.className = 'nav-btn nav-next' + (isLast ? ' nav-finish' : '')
+    if (isLast) {
+      next.textContent = todasRespondidas() ? '🔓 Ver resultado →' : `Responda todas para liberar (${totalRespondidas()}/${totalPerguntas()})`
+      next.disabled = !todasRespondidas()
+      next.onclick = () => { resultadoAberto = true; atualizar(); scrollResultados() }
+    } else {
+      next.textContent = 'Próxima seção →'
+      next.onclick = () => { curSec++; renderBlocos(); scrollTopo() }
+    }
+    nav.appendChild(next)
+    container.appendChild(nav)
+  }
+
+  function atualizarStepperEProgresso() {
+    // Re-render só dos elementos que mudam quando uma resposta é clicada,
+    // mantendo a página estável (não pula scroll).
+    renderProgresso()
+    // Atualiza dots do stepper
+    const dots = document.querySelectorAll('.stepper-dot')
+    SECTIONS.forEach((s, idx) => {
+      const done = s.questions.every(q => answers[q.id])
+      dots[idx]?.classList.toggle('done', done)
+    })
+    // Atualiza counter da seção atual
+    const sec = SECTIONS[curSec]
+    const respondidasSec = sec.questions.filter(q => answers[q.id]).length
+    const info = document.querySelector('.paginacao-info')
+    if (info) info.textContent = `${respondidasSec} / ${sec.questions.length} respondidas nesta seção`
+    // Reabilita botão final
+    if (curSec === SECTIONS.length - 1) {
+      const next = document.querySelector('.nav-finish')
+      if (next) {
+        next.textContent = todasRespondidas() ? '🔓 Ver resultado →' : `Responda todas para liberar (${totalRespondidas()}/${totalPerguntas()})`
+        next.disabled = !todasRespondidas()
+      }
+    }
+    // Se resultado já está aberto, recalcula
+    if (resultadoAberto) {
+      renderRanking()
+      renderExames()
+      renderSindromesExplicadas()
+    }
+  }
+
+  function scrollTopo() {
+    document.getElementById('questionario-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
+  function scrollResultados() {
+    setTimeout(() => {
+      document.getElementById('exames-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }, 100)
   }
 
   function rankedSynd() {
@@ -123,7 +211,7 @@
     const list = document.getElementById('ranking-list')
     list.innerHTML = ''
 
-    if (!todasRespondidas()) {
+    if (!todasRespondidas() || !resultadoAberto) {
       const done = totalRespondidas()
       const tot = totalPerguntas()
       const pct = (done / tot) * 100
@@ -167,8 +255,8 @@
     const container = document.getElementById('exames-container')
     container.innerHTML = ''
 
-    if (!todasRespondidas()) {
-      container.innerHTML = `<div class="empty">Responda todas as perguntas para liberar o plano personalizado.</div>`
+    if (!todasRespondidas() || !resultadoAberto) {
+      container.innerHTML = `<div class="empty">Termine o questionário e clique em "Ver resultado" pra liberar o plano personalizado.</div>`
       return
     }
 
@@ -298,8 +386,8 @@
     const container = document.getElementById('sindromes-explicadas')
     container.innerHTML = ''
 
-    if (!todasRespondidas()) {
-      container.innerHTML = `<div class="empty">Responda todas as perguntas para ver o detalhamento das síndromes.</div>`
+    if (!todasRespondidas() || !resultadoAberto) {
+      container.innerHTML = `<div class="empty">Termine o questionário e clique em "Ver resultado" pra liberar o detalhamento.</div>`
       return
     }
 
@@ -353,7 +441,8 @@
   function reset() {
     for (const k of Object.keys(answers)) delete answers[k]
     for (let i = 0; i < scores.length; i++) scores[i] = 0
-    document.querySelectorAll('.opcao-btn.selected').forEach(b => b.classList.remove('selected'))
+    curSec = 0
+    resultadoAberto = false
     atualizar()
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
